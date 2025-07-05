@@ -5,26 +5,28 @@
             <button class="header-button" @click="deleteMode = !deleteMode">Delete mode</button>
         </div>
         <table class="list">
-            <template v-for="(item) in store.orderedChecklist">
+            <tbody>
+                <template v-for="(item) in store.orderedChecklist">
                 <tr v-if="!item.checked || !hideCheckedMode">
                     <th class="col1" v-if="deleteMode">
-                        <button class="col1-item delete-button" @click="deleteItemAt(item)">x</button>
-                    </th>
-                    <th class="col1" v-else>
-                        <input class="col1-item" type="checkbox" v-model="item.checked" />
-                    </th>
-                    <th>
-                        {{ item.name }}
+                            <button class="col1-item delete-button" @click="deleteItemAt(item)">x</button>
+                        </th>
+                        <th class="col1" v-else>
+                            <input class="col1-item" type="checkbox" v-model="item.checked" />
+                        </th>
+                        <th>
+                            {{ item.name }}
+                        </th>
+                    </tr>
+                </template>
+                <tr>
+                    <th colspan="2">
+                        <form @submit.prevent="onNewItem">
+                            <input v-model="newItem" placeholder="New item here" @submit.prevent="onNewItem"/>
+                        </form>
                     </th>
                 </tr>
-            </template>
-            <tr>
-                <th colspan="2">
-                    <form @submit.prevent="onNewItem">
-                        <input v-model="newItem" placeholder="New item here" @submit.prevent="onNewItem"/>
-                    </form>
-                </th>
-            </tr>
+            </tbody>
         </table>
     </div>
 </template>
