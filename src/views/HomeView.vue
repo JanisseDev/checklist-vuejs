@@ -1,26 +1,24 @@
 <template>
     <div class="main">
-        <div class="header">
-            <button class="header-button" @click="hideCheckedMode = !hideCheckedMode">{{ hideCheckedMode ? 'Show checked' : 'Hide checked'}}</button>
-            <button class="header-button" @click="deleteMode = !deleteMode">Delete mode</button>
-        </div>
         <table class="list">
             <tbody>
-                <template v-for="(item) in store.orderedChecklist">
-                <tr v-if="!item.checked || !hideCheckedMode">
-                    <th class="col1" v-if="deleteMode">
-                            <button class="col1-item delete-button" @click="deleteItemAt(item)">x</button>
+                <template v-for="(item, index) in store.orderedChecklist">
+                    <tr v-if="!item.checked || !hideCheckedMode">
+                        <th class="col-label">
+                            <label :for='"checkbox-input-"+index' class="item-label">{{ item.name }}</label>
                         </th>
-                        <th class="col1" v-else>
-                            <input class="col1-item" type="checkbox" v-model="item.checked" />
+                        <th class="col-actions" v-if="deleteMode">
+                            <button class="item-action delete-button" @click="deleteItemAt(item)">
+                                <img class="button-icon" :src='xmarkSolid'>
+                            </button>
                         </th>
-                        <th>
-                            {{ item.name }}
+                        <th class="col-actions" v-else>
+                            <input :id='"checkbox-input-"+index' class="item-action" type="checkbox" v-model="item.checked" />
                         </th>
                     </tr>
                 </template>
                 <tr>
-                    <th colspan="2">
+                    <th class="col-actions" colspan="2">
                         <form @submit.prevent="onNewItem">
                             <input v-model="newItem" placeholder="New item here" @submit.prevent="onNewItem"/>
                         </form>
@@ -29,11 +27,24 @@
             </tbody>
         </table>
     </div>
+    <div class="footer">
+        <button class="footer-button" @click="hideCheckedMode = !hideCheckedMode">
+            <img class="button-icon" :src='hideCheckedMode ? eyeSlashSolid : eyeSolid'>
+        </button>
+        <button class="footer-button" @click="deleteMode = !deleteMode">
+            <img class="button-icon" :src='trashSolid'>
+        </button>
+    </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
 import { useChecklistStore } from '@/stores/checklistStore'
+
+import xmarkSolid from '@/assets/xmark-solid.svg'
+import eyeSlashSolid from '@/assets/eye-slash-solid.svg'
+import eyeSolid from '@/assets/eye-solid.svg'
+import trashSolid from '@/assets/trash-solid.svg'
 
 const store = useChecklistStore()
 const newItem = ref("")
@@ -57,25 +68,41 @@ function deleteItemAt(item) {
 <style scoped>
 .main {
     display: flex;
+    align-items: flex-end;
     justify-content: center;
-    margin-top: 50px;
+    margin: 8px;
+    min-height: calc(100vh - 50px - 16px);
 }
 
-.header {
+.footer {
     position: fixed;
     display: flex;
     justify-content: flex-end;
     gap: 8px;
+    height: 50px;
     width: 100%;
     padding: 8px;
     box-sizing: border-box;
-    top: 0px;
+    bottom: 0px;
     left: 0px;
     right: 0px;
     background-color: var(--header-background);
 }
 
-.header-button {
+button {
+    position: relative;
+}
+
+.button-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.footer-button {
+    height: 32px;
+    width: 32px;
     border: 0;
     border-radius: 50vh;
     padding: 8px 16px;
@@ -91,11 +118,16 @@ function deleteItemAt(item) {
     text-align: left;
 }
 
-.col1 {
-    width: 20px;
+.col-label {
+    text-align: right;
 }
 
-.col1-item {
+.col-actions {
+    width: 20px;
+    text-align: right;
+}
+
+.item-action {
     width: 20px;
     height: 20px;
     margin: 8px;
