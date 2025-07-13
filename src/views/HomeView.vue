@@ -71,7 +71,7 @@ function deleteItemAt(item) {
     align-items: flex-end;
     justify-content: center;
     margin: 8px;
-    min-height: calc(100vh - 50px - 16px);
+    min-height: calc(100dvh - 50px - 16px);
 }
 
 .footer {
