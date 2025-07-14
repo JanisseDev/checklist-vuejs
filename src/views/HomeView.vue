@@ -26,14 +26,14 @@
                 </tr>
             </tbody>
         </table>
-    </div>
-    <div class="footer">
-        <button class="footer-button" @click="hideCheckedMode = !hideCheckedMode">
-            <img class="button-icon" :src='hideCheckedMode ? eyeSlashSolid : eyeSolid'>
-        </button>
-        <button class="footer-button" @click="deleteMode = !deleteMode">
-            <img class="button-icon" :src='trashSolid'>
-        </button>
+        <div class="footer">
+            <button class="footer-button" @click="hideCheckedMode = !hideCheckedMode">
+                <img class="button-icon" :src='hideCheckedMode ? eyeSlashSolid : eyeSolid'>
+            </button>
+            <button class="footer-button" @click="deleteMode = !deleteMode">
+                <img class="button-icon" :src='trashSolid'>
+            </button>
+        </div>
     </div>
 </template>
 
@@ -68,14 +68,15 @@ function deleteItemAt(item) {
 <style scoped>
 .main {
     display: flex;
+    flex-direction: column;
     align-items: flex-end;
-    justify-content: center;
-    margin: 8px;
-    min-height: calc(100dvh - 50px - 16px);
+    justify-content: flex-end;
+    align-items: stretch;
+    min-height: 100dvh;
 }
 
 .footer {
-    position: fixed;
+    position: sticky;
     display: flex;
     justify-content: flex-end;
     gap: 8px;
@@ -110,8 +111,8 @@ button {
 }
 
 .list {
-    width: 100%;
     max-width: 800px;
+    margin: 8px;
     padding: 16px;
     border-radius: 16px;
     background-color: var(--list-background);
