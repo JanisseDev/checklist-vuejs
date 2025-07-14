@@ -13,7 +13,7 @@
                             </button>
                         </th>
                         <th class="col-actions" v-else>
-                            <input :id='"checkbox-input-"+index' class="item-action" type="checkbox" v-model="item.checked" />
+                            <input :id='"checkbox-input-"+index' class="item-action" type="checkbox" :checked="item.checked" @input="store.toggleChecklistItem(item)" />
                         </th>
                     </tr>
                 </template>
@@ -27,11 +27,15 @@
             </tbody>
         </table>
         <div class="footer">
-            <button class="footer-button" @click="hideCheckedMode = !hideCheckedMode">
-                <img class="button-icon" :src='hideCheckedMode ? eyeSlashSolid : eyeSolid'>
-            </button>
             <button class="footer-button" @click="deleteMode = !deleteMode">
                 <img class="button-icon" :src='trashSolid'>
+            </button>
+            <div class="spacer"></div>
+            <button class="footer-button" @click="undo">
+                <img class="button-icon" :src='rotateLeftSolid'>
+            </button>
+            <button class="footer-button" @click="hideCheckedMode = !hideCheckedMode">
+                <img class="button-icon" :src='hideCheckedMode ? eyeSlashSolid : eyeSolid'>
             </button>
         </div>
     </div>
@@ -41,10 +45,11 @@
 import { ref } from 'vue'
 import { useChecklistStore } from '@/stores/checklistStore'
 
-import xmarkSolid from '@/assets/xmark-solid.svg'
 import eyeSlashSolid from '@/assets/eye-slash-solid.svg'
 import eyeSolid from '@/assets/eye-solid.svg'
+import rotateLeftSolid from '@/assets/rotate-left-solid.svg'
 import trashSolid from '@/assets/trash-solid.svg'
+import xmarkSolid from '@/assets/xmark-solid.svg'
 
 const store = useChecklistStore()
 const newItem = ref("")
@@ -52,16 +57,16 @@ const hideCheckedMode = ref(true)
 const deleteMode = ref(false)
 
 function onNewItem() {
-    store.checklist.push({
-        name: newItem.value,
-        checked: false,
-    })
+    store.addChecklistItem(newItem.value)
     newItem.value = ""
 }
 
 function deleteItemAt(item) {
-    const index = store.checklist.indexOf(item)
-    store.checklist.splice(index, 1)
+    store.deleteChecklistItem(item)
+}
+
+function undo() {
+    store.undoChecklistItem()
 }
 </script>
 
@@ -108,6 +113,10 @@ button {
     border-radius: 50vh;
     padding: 8px 16px;
     background-color: var(--primary);
+}
+
+.spacer {
+    flex-grow: 1;
 }
 
 .list {
