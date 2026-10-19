@@ -2,7 +2,12 @@
     <div class="app">
         <header class="header">
             <div class="header-row">
-                <h1 class="title">Checklist</h1>
+                <h1 class="title">
+                    <button class="title-button" aria-haspopup="dialog" @click="listPicker.open()">
+                        <span class="title-text">{{ store.currentList.name }}</span>
+                        <AppIcon name="chevronDown" />
+                    </button>
+                </h1>
                 <span v-if="total > 0" class="progress-label">{{ store.checkedCount }} / {{ total }}</span>
             </div>
             <div v-if="total > 0" class="progress" role="progressbar" aria-label="Progress"
@@ -21,7 +26,7 @@
                 <p class="empty-text">Every item is checked.</p>
             </div>
 
-            <TransitionGroup tag="ul" name="item" class="list">
+            <TransitionGroup :key="store.currentList.uuid" tag="ul" name="item" class="list">
                 <li v-for="item in visibleItems" :key="item.uuid" class="item"
                     :class="{ 'is-checked': item.checked, 'is-highlighted': item.uuid === highlightedUuid }">
                     <label class="item-row">
@@ -73,6 +78,8 @@
                 </button>
             </div>
         </footer>
+
+        <ListPicker ref="listPicker" />
     </div>
 </template>
 
@@ -80,16 +87,18 @@
 import { ref, computed } from 'vue'
 import { useChecklistStore } from '@/stores/checklistStore'
 import AppIcon from '@/components/AppIcon.vue'
+import ListPicker from '@/components/ListPicker.vue'
 
 const store = useChecklistStore()
 const newItem = ref('')
 const newItemInput = ref(null)
+const listPicker = ref(null)
 const hideChecked = ref(true)
 const editMode = ref(false)
 const highlightedUuid = ref(null)
 let highlightTimeout = null
 
-const total = computed(() => store._checklist.length)
+const total = computed(() => store.items.length)
 const progress = computed(() => (total.value ? (store.checkedCount / total.value) * 100 : 0))
 const visibleItems = computed(() =>
     hideChecked.value ? store.orderedChecklist.filter((item) => !item.checked) : store.orderedChecklist
@@ -137,13 +146,49 @@ function highlight(item) {
 }
 
 .title {
+    min-width: 0;
     margin: 0;
     font-size: 1.5rem;
     font-weight: 700;
 }
 
+.title-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: calc(100% + 8px);
+    margin: -4px 0 -4px -8px;
+    padding: 4px 8px;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.title-button:hover {
+    background-color: var(--surface-muted);
+}
+
+.title-button:focus-visible {
+    outline: 2px solid var(--primary);
+}
+
+.title-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.title-button .icon {
+    color: var(--text-muted);
+}
+
 .progress-label {
     color: var(--text-muted);
+    flex-shrink: 0;
     font-variant-numeric: tabular-nums;
 }
 
@@ -330,34 +375,6 @@ function highlight(item) {
 }
 
 /* Buttons */
-.icon-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    min-width: 44px;
-    height: 44px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 12px;
-    background: none;
-    color: var(--text);
-    font: inherit;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    transition: background-color 0.15s ease, opacity 0.15s ease;
-}
-
-.icon-button:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 2px;
-}
-
-.icon-button:disabled {
-    opacity: 0.35;
-    cursor: default;
-}
-
 .tool-button:not(:disabled):hover {
     background-color: var(--border);
 }

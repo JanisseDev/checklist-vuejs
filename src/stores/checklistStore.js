@@ -1,39 +1,96 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 
+const STORAGE_KEY = 'checklist'
 const MAX_HISTORY = 50
+const DEFAULT_LIST_NAME = 'My list'
 
 const newId = () =>
     globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2)
 
 const normalize = (name) => name.trim().toLocaleLowerCase()
 
-export const useChecklistStore = defineStore('checklist', () => {
-    const _checklist = ref([])
-    // Changes recorded as diffs (only what changed), replayed in reverse by undo (not persisted):
+const createList = (name, items = []) => ({ uuid: newId(), name, items })
+
+// Older versions stored a single list as { _checklist: [...] }: wrap it into the first list
+function migrateLegacyStorage() {
+    try {
+        const data = JSON.parse(localStorage.getItem(STORAGE_KEY))
+        if (!data || data._lists || !Array.isArray(data._checklist)) return
+        const list = createList(DEFAULT_LIST_NAME, data._checklist)
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ _lists: [list], _currentListId: list.uuid }))
+    } catch {
+        // Unreadable storage: keep the default state
+    }
+}
+
+export const useChecklistStore = defineStore(STORAGE_KEY, () => {
+    const initialList = createList(DEFAULT_LIST_NAME)
+    const _lists = ref([initialList])
+    const _currentListId = ref(initialList.uuid)
+    // Changes recorded as diffs (only what changed), one history per list, replayed in reverse by undo (not persisted):
     //   { type: 'add', uuid }
     //   { type: 'delete', item, index }
     //   { type: 'check', uuids, checked }  -> previous checked state of these items
-    const _history = ref([])
+    const _histories = ref({})
+
+    const currentList = computed(() => _lists.value.find((list) => list.uuid === _currentListId.value) ?? _lists.value[0])
+    const items = computed(() => currentList.value.items)
+    const history = computed(() => _histories.value[currentList.value.uuid] ?? [])
 
     // Unchecked first, then alphabetical. Copies the array so the stored order is untouched.
     const orderedChecklist = computed(() => {
-        return [..._checklist.value].sort((a, b) =>
+        return [...items.value].sort((a, b) =>
             a.checked - b.checked || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
         )
     })
 
-    const checkedCount = computed(() => _checklist.value.filter((item) => item.checked).length)
-    const canUndo = computed(() => _history.value.length > 0)
+    const checkedCount = computed(() => items.value.filter((item) => item.checked).length)
+    const canUndo = computed(() => history.value.length > 0)
 
     const pushHistory = (change) => {
-        _history.value.push(change)
-        if (_history.value.length > MAX_HISTORY) {
-            _history.value.shift()
+        const listHistory = (_histories.value[currentList.value.uuid] ??= [])
+        listHistory.push(change)
+        if (listHistory.length > MAX_HISTORY) {
+            listHistory.shift()
         }
     }
 
-    const findByName = (itemName) => _checklist.value.find((item) => normalize(item.name) === normalize(itemName))
+    // Lists
+
+    const selectList = (list) => {
+        _currentListId.value = list.uuid
+    }
+
+    const addList = (listName) => {
+        const name = listName.trim()
+        if (!name) return null
+        const list = createList(name)
+        _lists.value.push(list)
+        selectList(list)
+        return list
+    }
+
+    const renameList = (list, listName) => {
+        const name = listName.trim()
+        if (name) list.name = name
+    }
+
+    // The last remaining list cannot be deleted
+    const deleteList = (list) => {
+        if (_lists.value.length <= 1) return
+        const index = _lists.value.findIndex((l) => l.uuid === list.uuid)
+        if (index === -1) return
+        _lists.value.splice(index, 1)
+        delete _histories.value[list.uuid]
+        if (_currentListId.value === list.uuid) {
+            _currentListId.value = _lists.value[Math.max(0, index - 1)].uuid
+        }
+    }
+
+    // Items of the current list
+
+    const findByName = (itemName) => items.value.find((item) => normalize(item.name) === normalize(itemName))
 
     // Returns the item that was added, or the existing item with the same name (unchecked if needed)
     const addChecklistItem = (itemName) => {
@@ -50,15 +107,15 @@ export const useChecklistStore = defineStore('checklist', () => {
         }
 
         const item = { uuid: newId(), name, checked: false }
-        _checklist.value.push(item)
+        items.value.push(item)
         pushHistory({ type: 'add', uuid: item.uuid })
         return item
     }
 
     const deleteChecklistItem = (item) => {
-        const index = _checklist.value.findIndex((i) => i.uuid === item.uuid)
+        const index = items.value.findIndex((i) => i.uuid === item.uuid)
         if (index === -1) return
-        const [removed] = _checklist.value.splice(index, 1)
+        const [removed] = items.value.splice(index, 1)
         pushHistory({ type: 'delete', item: { ...removed }, index })
     }
 
@@ -68,30 +125,30 @@ export const useChecklistStore = defineStore('checklist', () => {
     }
 
     const uncheckAll = () => {
-        const checkedItems = _checklist.value.filter((item) => item.checked)
+        const checkedItems = items.value.filter((item) => item.checked)
         if (checkedItems.length === 0) return
         pushHistory({ type: 'check', uuids: checkedItems.map((item) => item.uuid), checked: true })
         checkedItems.forEach((item) => { item.checked = false })
     }
 
     const undoChecklistItem = () => {
-        const change = _history.value.pop()
+        const change = history.value.pop()
         if (change === undefined) return
 
         switch (change.type) {
             case 'add': {
-                const index = _checklist.value.findIndex((item) => item.uuid === change.uuid)
-                if (index !== -1) _checklist.value.splice(index, 1)
+                const index = items.value.findIndex((item) => item.uuid === change.uuid)
+                if (index !== -1) items.value.splice(index, 1)
                 break
             }
             case 'delete': {
-                const index = Math.min(change.index, _checklist.value.length)
-                _checklist.value.splice(index, 0, change.item)
+                const index = Math.min(change.index, items.value.length)
+                items.value.splice(index, 0, change.item)
                 break
             }
             case 'check': {
                 const uuids = new Set(change.uuids)
-                _checklist.value.forEach((item) => {
+                items.value.forEach((item) => {
                     if (uuids.has(item.uuid)) item.checked = change.checked
                 })
                 break
@@ -100,11 +157,18 @@ export const useChecklistStore = defineStore('checklist', () => {
     }
 
     return {
-        _checklist,
-        _history,
+        _lists,
+        _currentListId,
+        _histories,
+        currentList,
+        items,
         orderedChecklist,
         checkedCount,
         canUndo,
+        selectList,
+        addList,
+        renameList,
+        deleteList,
         addChecklistItem,
         deleteChecklistItem,
         toggleChecklistItem,
@@ -114,6 +178,7 @@ export const useChecklistStore = defineStore('checklist', () => {
 },
 {
     persist: {
-        pick: ['_checklist'],
+        pick: ['_lists', '_currentListId'],
+        beforeHydrate: migrateLegacyStorage,
     },
 })

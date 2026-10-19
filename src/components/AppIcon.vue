@@ -24,6 +24,8 @@ const paths = {
         'M2 2l20 20',
     ],
     check: ['M20 6 9 17l-5-5'],
+    pencil: ['M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z', 'm15 5 4 4'],
+    chevronDown: ['m6 9 6 6 6-6'],
 }
 </script>
 
