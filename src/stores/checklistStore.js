@@ -1,51 +1,119 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { uuid } from 'vue-uuid'
+
+const MAX_HISTORY = 50
+
+const newId = () =>
+    globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2)
+
+const normalize = (name) => name.trim().toLocaleLowerCase()
 
 export const useChecklistStore = defineStore('checklist', () => {
     const _checklist = ref([])
+    // Changes recorded as diffs (only what changed), replayed in reverse by undo (not persisted):
+    //   { type: 'add', uuid }
+    //   { type: 'delete', item, index }
+    //   { type: 'check', uuids, checked }  -> previous checked state of these items
     const _history = ref([])
 
+    // Unchecked first, then alphabetical. Copies the array so the stored order is untouched.
     const orderedChecklist = computed(() => {
-        return _checklist.value.sort((a, b) => {
-            const nameA = a.name.toLowerCase(); // ignore upper and lowercase
-            const nameB = b.name.toLowerCase(); // ignore upper and lowercase
-            if (nameA < nameB) { return -1 }
-            if (nameA > nameB) { return 1 }
-            return 0;
-        })
+        return [..._checklist.value].sort((a, b) =>
+            a.checked - b.checked || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+        )
     })
 
+    const checkedCount = computed(() => _checklist.value.filter((item) => item.checked).length)
+    const canUndo = computed(() => _history.value.length > 0)
+
+    const pushHistory = (change) => {
+        _history.value.push(change)
+        if (_history.value.length > MAX_HISTORY) {
+            _history.value.shift()
+        }
+    }
+
+    const findByName = (itemName) => _checklist.value.find((item) => normalize(item.name) === normalize(itemName))
+
+    // Returns the item that was added, or the existing item with the same name (unchecked if needed)
     const addChecklistItem = (itemName) => {
-        _checklist.value.push({
-            uuid: uuid.v4(),
-            name: itemName,
-            checked: false,
-        })
+        const name = itemName.trim()
+        if (!name) return null
+
+        const existing = findByName(name)
+        if (existing) {
+            if (existing.checked) {
+                pushHistory({ type: 'check', uuids: [existing.uuid], checked: true })
+                existing.checked = false
+            }
+            return existing
+        }
+
+        const item = { uuid: newId(), name, checked: false }
+        _checklist.value.push(item)
+        pushHistory({ type: 'add', uuid: item.uuid })
+        return item
     }
 
     const deleteChecklistItem = (item) => {
-        const index = _checklist.value.indexOf(item)
-        _checklist.value.splice(index, 1)
+        const index = _checklist.value.findIndex((i) => i.uuid === item.uuid)
+        if (index === -1) return
+        const [removed] = _checklist.value.splice(index, 1)
+        pushHistory({ type: 'delete', item: { ...removed }, index })
     }
 
     const toggleChecklistItem = (item) => {
-        _history.value.push(JSON.parse(JSON.stringify(item)))
+        pushHistory({ type: 'check', uuids: [item.uuid], checked: item.checked })
         item.checked = !item.checked
     }
 
+    const uncheckAll = () => {
+        const checkedItems = _checklist.value.filter((item) => item.checked)
+        if (checkedItems.length === 0) return
+        pushHistory({ type: 'check', uuids: checkedItems.map((item) => item.uuid), checked: true })
+        checkedItems.forEach((item) => { item.checked = false })
+    }
+
     const undoChecklistItem = () => {
-        let oldItem = _history.value.pop()
-        if(oldItem != undefined) {
-            let currentItem = _checklist.value.find((item) => item.uuid == oldItem.uuid)
-            if(currentItem != undefined) {
-                currentItem.checked = oldItem.checked
+        const change = _history.value.pop()
+        if (change === undefined) return
+
+        switch (change.type) {
+            case 'add': {
+                const index = _checklist.value.findIndex((item) => item.uuid === change.uuid)
+                if (index !== -1) _checklist.value.splice(index, 1)
+                break
+            }
+            case 'delete': {
+                const index = Math.min(change.index, _checklist.value.length)
+                _checklist.value.splice(index, 0, change.item)
+                break
+            }
+            case 'check': {
+                const uuids = new Set(change.uuids)
+                _checklist.value.forEach((item) => {
+                    if (uuids.has(item.uuid)) item.checked = change.checked
+                })
+                break
             }
         }
     }
 
-    return { _checklist, addChecklistItem, deleteChecklistItem, orderedChecklist, toggleChecklistItem, undoChecklistItem }
+    return {
+        _checklist,
+        _history,
+        orderedChecklist,
+        checkedCount,
+        canUndo,
+        addChecklistItem,
+        deleteChecklistItem,
+        toggleChecklistItem,
+        uncheckAll,
+        undoChecklistItem,
+    }
 },
 {
-    persist: true,
+    persist: {
+        pick: ['_checklist'],
+    },
 })

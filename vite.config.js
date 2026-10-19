@@ -18,7 +18,9 @@ export default defineConfig({
         name: 'Checklist',
         short_name: 'Checklist',
         description: 'A simple checklist',
-        theme_color: '#42b983',
+        theme_color: '#f6f9ef',
+        background_color: '#f6f9ef',
+        display: 'standalone',
         icons: [
           {
             src: 'app-icon-512x512.png',
