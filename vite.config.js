@@ -13,25 +13,30 @@ export default defineConfig({
     vueDevTools(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: [],
+      includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Checklist',
         short_name: 'Checklist',
-        description: 'A simple checklist',
+        description: 'A private checklist app: no account, no cloud, your lists stay on your device.',
         theme_color: '#f6f9ef',
         background_color: '#f6f9ef',
         display: 'standalone',
         icons: [
+          {
+            src: 'app-icon-192x192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
           {
             src: 'app-icon-512x512.png',
             sizes: '512x512',
             type: 'image/png'
           },
           {
-            src: 'app-icon-512x512.png',
+            src: 'app-icon-maskable-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'maskable'
           }
         ]
       }
